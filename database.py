@@ -13,6 +13,11 @@ class Database:
     def close(self):
         self.connection.close()
 
+    def make_engine(self):
+        if self.engine is None:
+            self.engine = sqlalchemy.create_engine(self.uri)
+
+
 
 class PostgresDatabase(Database):
     def __init__(self, config_file, config_name):
@@ -25,11 +30,12 @@ class PostgresDatabase(Database):
         self.db_name = None
         self.uri = None
         self.engine = None
-        self.load_config(config_file, config_name)        
+        self.load_config(config_file, config_name)
         self.db_type = 'postgres'
         self.placeholder = '%s'
         self.bool_function = 'BOOL'
-        self.connect()        
+        self.connect()
+        self.make_engine()
 
     def load_config(self, config_file, config_name):
         config = configparser.ConfigParser(allow_no_value=True)
@@ -47,10 +53,6 @@ class PostgresDatabase(Database):
         self.connection = psycopg2.connect(connection_str)
         self.cursor = self.connection.cursor()
         self.dict_cursor = self.connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    
-    def make_engine(self):
-        if self.engine is None:
-            self.engine = sqlalchemy.create_engine(self.uri)
 
 
 class SQLiteDatabase(Database):
@@ -61,8 +63,9 @@ class SQLiteDatabase(Database):
         self.db_type = 'sqlite'
         self.placeholder = '?'
         self.bool_function = ''
-        
-        
+        self.make_engine()
+
+
 class DBTable:
     def __init__(self, database, table_name, schema=None):
         self.table_name = table_name
@@ -83,9 +86,9 @@ class DBTable:
     def select_all(self):
         query = 'SELECT * FROM {table_name};'
         query = query.format(table_name=self.full_table_name)
-        self.database.cursor.execute(query)    
-        
-    def value_present(self, column, value):
+        self.database.cursor.execute(query)
+
+    def contains_value(self, column, value):
         query = 'SELECT exists (SELECT 1 FROM {table_name} WHERE {column} = {placeholder}  LIMIT 1);'
         query = query.format(table_name=self.table_name, column=column, placeholder=self.database.placeholder)
         self.database.cursor.execute(query, (value,))
@@ -97,12 +100,15 @@ class DBTable:
         query = query.format(table_name=self.full_table_name)
         self.database.cursor.execute(query)
         self.database.commit()
-        
+
     def commit(self):
         self.database.commit()
 
-    def from_dataframe(self, df):        
+    def from_dataframe(self, df):
         df.to_sql(name=self.full_table_name, con=self.database.engine, schema=self.schema, if_exists='replace', index=True)
+
+    def append_dataframe(self, db):
+        df.to_sql(name=self.full_table_name, con=self.database.engine, schema=self.schema, if_exists='append', index=True)
 
     def to_dataframe(self, query=None):
         if query is None:
