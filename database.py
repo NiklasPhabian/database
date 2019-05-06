@@ -52,9 +52,6 @@ class PostgresDatabase(Database):
         if self.engine is None:
             self.engine = sqlalchemy.create_engine(self.uri)
 
-    def execute_query(self, query):
-        self.cursor.execute(query)
-
 
 class SQLiteDatabase(Database):
     def __init__(self, db_path):
@@ -64,11 +61,11 @@ class SQLiteDatabase(Database):
         self.db_type = 'sqlite'
         self.placeholder = '?'
         self.bool_function = ''
-        self.connect()        
-
-
+        
+        
 class DBTable:
-    def __init__(self, database, schema=None):
+    def __init__(self, database, table_name, schema=None):
+        self.table_name = table_name
         self.database = database
         self.schema = schema
         self.cursor = self.database.cursor
@@ -86,11 +83,14 @@ class DBTable:
     def select_all(self):
         query = 'SELECT * FROM {table_name};'
         query = query.format(table_name=self.full_table_name)
-        self.execute_query(query)
-
-    def execute_query(self, query):
-        query = query.format(table_name=self.full_table_name)
-        self.database.cursor.execute(query)
+        self.database.cursor.execute(query)    
+        
+    def value_present(self, column, value):
+        query = 'SELECT exists (SELECT 1 FROM {table_name} WHERE {column} = {placeholder}  LIMIT 1);'
+        query = query.format(table_name=self.table_name, column=column, placeholder=self.database.placeholder)
+        self.database.cursor.execute(query, (value,))
+        ret = self.database.cursor.fetchone()
+        return ret[0]        
 
     def drop(self):
         query = 'DROP TABLE IF EXISTS {table_name}'.format(table_name=self.full_table_name)
