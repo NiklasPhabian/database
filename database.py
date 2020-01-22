@@ -15,8 +15,7 @@ class Database:
 
     def make_engine(self):
         if self.engine is None:
-            self.engine = sqlalchemy.create_engine(self.uri)
-
+            self.engine = sqlalchemy.create_engine(self.uri, pool_size=10)
 
 
 class PostgresDatabase(Database):
@@ -91,9 +90,10 @@ class DBTable:
     def contains_value(self, column, value):
         query = 'SELECT exists (SELECT 1 FROM {table_name} WHERE {column} = {placeholder}  LIMIT 1);'
         query = query.format(table_name=self.table_name, column=column, placeholder=self.database.placeholder)
-        self.database.cursor.execute(query, (value,))
-        ret = self.database.cursor.fetchone()
-        return ret[0]        
+        with self.database.engine.connect() as conn:
+            res = conn.execute(query, (value,)) 
+            ret = res.fetchone()
+        return ret[0]
 
     def drop(self):
         query = 'DROP TABLE IF EXISTS {table_name}'.format(table_name=self.full_table_name)
