@@ -16,6 +16,10 @@ class Database:
     def make_engine(self):
         if self.engine is None:
             self.engine = sqlalchemy.create_engine(self.uri)
+            
+    def query_to_dataframe(self, query):                
+        df = pandas.read_sql(sql=query, con=self.engine)
+        return df
 
 
 
@@ -107,7 +111,7 @@ class DBTable:
     def from_dataframe(self, df):
         df.to_sql(name=self.full_table_name, con=self.database.engine, schema=self.schema, if_exists='replace', index=True)
 
-    def append_dataframe(self, db):
+    def append_dataframe(self, df):
         df.to_sql(name=self.full_table_name, con=self.database.engine, schema=self.schema, if_exists='append', index=True)
 
     def to_dataframe(self, query=None):

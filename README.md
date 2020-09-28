@@ -12,4 +12,8 @@
 
 
 # Usage
-import plots
+    import database
+    
+    db = database.PostgresDatabase(config_file='path/to/db_config.py', config_name='mydbserver')
+    table = database.DBTable(database=db, table_name='customers, schema='public')    
+    df = table.to_dataframe()
