@@ -21,8 +21,6 @@ class Database:
         df = pandas.read_sql(sql=query, con=self.engine)
         return df
 
-
-
 class PostgresDatabase(Database):
     def __init__(self, config_file, config_name):
         self.user = None
@@ -95,9 +93,10 @@ class DBTable:
     def contains_value(self, column, value):
         query = 'SELECT exists (SELECT 1 FROM {table_name} WHERE {column} = {placeholder}  LIMIT 1);'
         query = query.format(table_name=self.table_name, column=column, placeholder=self.database.placeholder)
-        self.database.cursor.execute(query, (value,))
-        ret = self.database.cursor.fetchone()
-        return ret[0]        
+        with self.database.engine.connect() as conn:
+            res = conn.execute(query, (value,)) 
+            ret = res.fetchone()
+        return ret[0]
 
     def drop(self):
         query = 'DROP TABLE IF EXISTS {table_name}'.format(table_name=self.full_table_name)
